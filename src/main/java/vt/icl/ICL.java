@@ -5,10 +5,12 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
-import net.minecraft.network.packet.s2c.play.PlaySoundIdS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -93,7 +95,7 @@ public class ICL implements ModInitializer {
         for (int i = 0; i < config.NotificationTimes; i++) {
             int finalI = i;
             long delay = config.Delay - config.NotificationStart + config.NotificationDelay * i;
-            if (delay < 0  || delay > config.Delay) {
+            if (delay < 0 || delay > config.Delay) {
                 continue;
             }
             TIMER.schedule(new TimerTask() {
@@ -101,7 +103,7 @@ public class ICL implements ModInitializer {
                 public void run() {
                     LOGGER.info("{} seconds left", "Clearing items " + (config.NotificationStart - config.NotificationDelay * finalI));
                     for (var player : server.getPlayerManager().getPlayerList()) {
-                        MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.notification", (config.NotificationStart - config.NotificationDelay * finalI)) +  " ")
+                        MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.notification", (config.NotificationStart - config.NotificationDelay * finalI)) + " ")
                                 .formatted(Formatting.valueOf(config.NotificationColor));
                         IclMessage(player, message);
                         try {
@@ -158,7 +160,7 @@ public class ICL implements ModInitializer {
                         public void run() {
                             LOGGER.info("{} seconds left", "Clearing items " + (finalCountdownstart - finalI));
                             for (var player : server.getPlayerManager().getPlayerList()) {
-                                MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) +  " ")
+                                MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) + " ")
                                         .formatted(Formatting.valueOf(config.NotificationColor));
                                 IclMessage(player, message);
                             }
@@ -187,7 +189,7 @@ public class ICL implements ModInitializer {
         int count = 0;
         for (var world : server.getWorlds()) {
             for (var entity : world.getEntitiesByType(TypeFilter.instanceOf(ItemEntity.class), Entity::isAlive)) {
-                if(config.preserveNoPickupItems) {
+                if (config.preserveNoPickupItems) {
                     ItemEntityAccessor accessor = (ItemEntityAccessor) entity;
                     if (accessor.getPickupDelay() == Short.MAX_VALUE) {
                         continue;
@@ -301,7 +303,8 @@ public class ICL implements ModInitializer {
         } else {
             sound = new Identifier(config.NotificationSound);
         }
-        player.networkHandler.sendPacket(new PlaySoundIdS2CPacket(sound, SoundCategory.PLAYERS, vec3d, 1, 1, 1));
+        RegistryEntry<SoundEvent> registryEntry = RegistryEntry.of(SoundEvent.of(sound));
+        player.networkHandler.sendPacket(new PlaySoundS2CPacket(registryEntry, SoundCategory.PLAYERS, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1, 1, 1));
     }
 
 }

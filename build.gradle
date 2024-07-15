@@ -11,10 +11,6 @@ base {
 }
 
 repositories {
-    maven {
-        name = "TerraformersMC (ModMenu)"
-        url = "https://maven.terraformersmc.com/releases/"
-    }
 }
 
 dependencies {
@@ -23,9 +19,6 @@ dependencies {
 
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
-    modRuntimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 }
 
 processResources {
