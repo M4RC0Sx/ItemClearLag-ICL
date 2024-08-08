@@ -43,6 +43,15 @@ Configuration values can be changed using the `/icl config set` command. Here ar
 - `preserveNoDespawnItems`: Whether to preserve items that are set to never despawn.
 - `preserveNoPickupItems`: Whether to preserve items that are set to not be picked up.
 
+## Permissions
+
+ICL has a fabric-permissions integration, which allows you to set permissions for each command. Here are the permissions:
+
+- `icl.forceclean`: Allows the player to use the `/icl forceclean` command.
+- `icl.reload`: Allows the player to use the `/icl reload` command.
+- `icl.config`: Allows the player to use the `/icl config` command.
+- `icl.cancel`: Allows the player to use the `/icl cancel` command.
+
 ## License
 
 ICL is licensed under the MIT License. See the `LICENSE` file for more details.
