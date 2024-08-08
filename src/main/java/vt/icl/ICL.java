@@ -3,6 +3,7 @@ package vt.icl;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
@@ -25,6 +26,7 @@ import vt.icl.config.ConfigManager;
 import vt.icl.config.Configuration;
 import vt.icl.config.lang.IclTranslationManager;
 import vt.icl.mixin.ItemEntityAccessor;
+import vt.icl.permission.PermissionHandler;
 
 import java.util.Map;
 import java.util.Timer;
@@ -33,22 +35,32 @@ import java.util.TimerTask;
 import static vt.icl.config.lang.IclTranslationManager.createDefaultTranslationFiles;
 
 public class ICL implements ModInitializer {
-    public static final Logger LOGGER = LoggerFactory.getLogger("ICL");
+    public static final String MOD_ID = "icl";
+    public static final String MOD_PREFIX = "[" + MOD_ID.toUpperCase() + "] ";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID.toUpperCase());
     public static Configuration config = ConfigManager.getConfig();
-    private static Timer TIMER = new Timer("ICL");
+    private static Timer TIMER = new Timer(MOD_ID.toUpperCase());
     private static MinecraftServer server;
 
     public static Map<String, String> translations;
     private static Map<String, String> defaultTranslations;
+    public static PermissionHandler permissionHandler;
 
     @Override
     public void onInitialize() {
-        LOGGER.info("Initializing ICL");
+        LOGGER.info("Initializing " + MOD_ID.toUpperCase());
         CommandRegistrationCallback.EVENT.register(IclCommand::register);
         createDefaultTranslationFiles();
         translations = IclTranslationManager.loadTranslation(config.NotificationLang);
         defaultTranslations = IclTranslationManager.loadTranslation("en_us");
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+
+            if (FabricLoader.getInstance().isModLoaded("fabric-permissions-api-v0")) {
+                permissionHandler = new vt.icl.permission.FabricPermissions();
+            } else {
+                permissionHandler = null;
+            }
+
             ICL.server = server;
             translations = IclTranslationManager.loadTranslation(config.NotificationLang);
             if (config.Delay > 0) {
@@ -60,9 +72,14 @@ public class ICL implements ModInitializer {
                     setupCountdownTimer(server);
                 }
             } else {
-                LOGGER.info("ICL disabled, delay is less than 0");
+                LOGGER.info(MOD_ID.toUpperCase() + " disabled, delay is less than 0");
             }
-            LOGGER.info("ICL initialized");
+            LOGGER.info(MOD_ID.toUpperCase() + " initialized");
+        });
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            TIMER.cancel();
+            LOGGER.info(MOD_ID.toUpperCase() + " stopped");
         });
     }
 
@@ -103,7 +120,7 @@ public class ICL implements ModInitializer {
                 public void run() {
                     LOGGER.info("{} seconds left", "Clearing items " + (config.NotificationStart - config.NotificationDelay * finalI));
                     for (var player : server.getPlayerManager().getPlayerList()) {
-                        MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.notification", (config.NotificationStart - config.NotificationDelay * finalI)) + " ")
+                        MutableText message = Text.literal(MOD_PREFIX  + IclTranslate("text.icl.notification", (config.NotificationStart - config.NotificationDelay * finalI)) + " ")
                                 .formatted(Formatting.valueOf(config.NotificationColor));
                         IclMessage(player, message);
                         try {
@@ -121,13 +138,7 @@ public class ICL implements ModInitializer {
     }
 
     private static void IclMessage(ServerPlayerEntity player, MutableText message) {
-        if (config.RequireOpCancel) {
-            if (player.hasPermissionLevel(2)) {
-                message.append(Text.literal(IclTranslate("text.icl.cancel.button"))
-                        .styled(style -> style.withClickEvent(IclCancelEvent()))
-                        .formatted(Formatting.RED));
-            }
-        } else {
+        if (permissionCheckforCancel(player)) {
             message.append(Text.literal(IclTranslate("text.icl.cancel.button"))
                     .styled(style -> style.withClickEvent(IclCancelEvent()))
                     .formatted(Formatting.RED));
@@ -160,7 +171,7 @@ public class ICL implements ModInitializer {
                         public void run() {
                             LOGGER.info("{} seconds left", "Clearing items " + (finalCountdownstart - finalI));
                             for (var player : server.getPlayerManager().getPlayerList()) {
-                                MutableText message = Text.literal("[ICL] " + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) + " ")
+                                MutableText message = Text.literal(MOD_PREFIX  + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) + " ")
                                         .formatted(Formatting.valueOf(config.NotificationColor));
                                 IclMessage(player, message);
                             }
@@ -175,7 +186,7 @@ public class ICL implements ModInitializer {
         LOGGER.info("Clearing items");
         for (var player : server.getPlayerManager().getPlayerList()) {
             if (config.doShowNotification) {
-                player.sendMessage(Text.literal("[ICL] " + IclTranslate("text.icl.clear")).formatted(Formatting.valueOf(config.NotificationColor)));
+                player.sendMessage(Text.literal(MOD_PREFIX + IclTranslate("text.icl.clear")).formatted(Formatting.valueOf(config.NotificationColor)));
                 try {
                     if (config.doLastNotificationSound) {
                         IclPlaysound(player, true);
@@ -206,7 +217,7 @@ public class ICL implements ModInitializer {
         }
         for (var player : server.getPlayerManager().getPlayerList()) {
             if (config.doShowNotification) {
-                player.sendMessage(Text.literal("[ICL] " + IclTranslate("text.icl.clear.finish", count)).formatted(Formatting.valueOf(config.NotificationColor)));
+                player.sendMessage(Text.literal(MOD_PREFIX  + IclTranslate("text.icl.clear.finish", count)).formatted(Formatting.valueOf(config.NotificationColor)));
             }
         }
         LOGGER.info("Items cleared: {}", count);
@@ -214,7 +225,7 @@ public class ICL implements ModInitializer {
 
     public static void reloadIcl() {
         TIMER.cancel();
-        TIMER = new Timer("ICL");
+        TIMER = new Timer(MOD_ID.toUpperCase());
         config = ConfigManager.getConfig();
         if (config.Delay > 0) {
             doItemClean(server);
@@ -225,13 +236,13 @@ public class ICL implements ModInitializer {
                 setupCountdownTimer(server);
             }
         } else {
-            LOGGER.info("ICL disabled, delay is less than 0");
+            LOGGER.info(MOD_ID.toUpperCase() + " disabled, delay is less than 0");
         }
     }
 
     public static void CancelIcl(int tempDelay) {
         TIMER.cancel();
-        TIMER = new Timer("ICL");
+        TIMER = new Timer(MOD_ID.toUpperCase());
         if (tempDelay > 0) {
             TIMER.schedule(new TimerTask() {
                 @Override
@@ -246,7 +257,7 @@ public class ICL implements ModInitializer {
                             setupCountdownTimer(server);
                         }
                     } else {
-                        LOGGER.info("ICL disabled, delay is less than 0");
+                        LOGGER.info(MOD_ID.toUpperCase() + " disabled, delay is less than 0");
                     }
                 }
             }, tempDelay * 1000L);
@@ -261,7 +272,7 @@ public class ICL implements ModInitializer {
                     setupCountdownTimer(server);
                 }
             } else {
-                LOGGER.info("ICL disabled, delay is less than 0");
+                LOGGER.info(MOD_ID.toUpperCase() + " disabled, delay is less than 0");
             }
         }
     }
@@ -305,6 +316,14 @@ public class ICL implements ModInitializer {
         }
         RegistryEntry<SoundEvent> registryEntry = RegistryEntry.of(SoundEvent.of(sound));
         player.networkHandler.sendPacket(new PlaySoundS2CPacket(registryEntry, SoundCategory.PLAYERS, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1, 1, 1));
+    }
+
+    private static boolean permissionCheckforCancel(ServerPlayerEntity player) {
+        if (ICL.permissionHandler != null) {
+            return ICL.permissionHandler.hasPermission(player, ICL.MOD_ID + "." + "cancel");
+        } else {
+            return !config.RequireOpCancel || player.hasPermissionLevel(2);
+        }
     }
 
 }
