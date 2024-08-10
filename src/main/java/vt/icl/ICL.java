@@ -4,6 +4,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.command.CommandSource;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.network.packet.s2c.play.PlaySoundIdS2CPacket;
@@ -136,7 +137,7 @@ public class ICL implements ModInitializer {
     }
 
     private static void IclMessage(ServerPlayerEntity player, MutableText message) {
-        if (permissionCheckforCancel(player)) {
+        if (permissionCheckforCancel(player.getCommandSource())) {
             message.append(Text.literal(IclTranslate("text.icl.cancel.button"))
                     .styled(style -> style.withClickEvent(IclCancelEvent()))
                     .formatted(Formatting.RED));
@@ -315,11 +316,11 @@ public class ICL implements ModInitializer {
         player.networkHandler.sendPacket(new PlaySoundIdS2CPacket(sound, SoundCategory.PLAYERS, vec3d, 1, 1, 1));
     }
 
-    private static boolean permissionCheckforCancel(ServerPlayerEntity player) {
+    private static boolean permissionCheckforCancel(CommandSource source) {
         if (ICL.permissionHandler != null) {
-            return ICL.permissionHandler.hasPermission(player, ICL.MOD_ID + "." + "cancel");
+            return ICL.permissionHandler.hasPermission(source, ICL.MOD_ID + "." + "cancel");
         } else {
-            return !config.RequireOpCancel || player.hasPermissionLevel(2);
+            return !config.RequireOpCancel || source.hasPermissionLevel(2);
         }
     }
 
