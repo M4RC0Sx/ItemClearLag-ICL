@@ -140,7 +140,7 @@ public class IclCommand {
 
     private static boolean permissionCheck(ServerCommandSource source, String permission) {
         if (ICL.permissionHandler != null) {
-            return ICL.permissionHandler.hasPermission(source.getPlayer(), ICL.MOD_ID + "." + permission);
+            return ICL.permissionHandler.hasPermission(source, ICL.MOD_ID + "." + permission);
         } else {
             return !config.RequireOp || source.hasPermissionLevel(2);
         }
@@ -148,7 +148,7 @@ public class IclCommand {
 
     private static boolean permissionCheckforCancel(ServerCommandSource source) {
         if (ICL.permissionHandler != null) {
-            return ICL.permissionHandler.hasPermission(source.getPlayer(), ICL.MOD_ID + "." + "cancel");
+            return ICL.permissionHandler.hasPermission(source, ICL.MOD_ID + "." + "cancel");
         } else {
             return !config.RequireOpCancel || source.hasPermissionLevel(2);
         }
