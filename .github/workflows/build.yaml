@@ -1,0 +1,35 @@
+name: 'Build'
+
+on:
+  [ push ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: git fetch origin --tags
+        shell: bash
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Build with Gradle
+        run: ./gradlew build -x check --max-workers 1
+      - name: List build directory contents
+        run: ls -R build
+      - name: Extract repository name
+        id: repo_name
+        run: echo "repo_name=$(echo ${{ github.repository }} | cut -d'/' -f2)" >> $GITHUB_ENV
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.repo_name }}
+          path: build/libs/
+          if-no-files-found: error
+          retention-days: 3
