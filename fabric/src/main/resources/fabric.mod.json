@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "VeiTr"
+  ],
+  "contact": {
+    "sources": "${mod_sources}",
+    "issues": "${mod_issue_tracker}"
+  },
+  "license": "${mod_license}",
+  "icon": "assets/icl/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "main": [
+      "vt.icl.fabric.ICL"
+    ]
+  },
+  "mixins": [
+    "icl.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": ">=${minecraft_version}",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}
