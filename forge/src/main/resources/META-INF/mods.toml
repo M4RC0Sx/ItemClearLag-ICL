@@ -12,6 +12,7 @@ ${mod_description}
 '''
 sources = "${mod_sources}"
 issueTrackerURL = "${mod_issue_tracker}"
+displayTest = "NONE"
 
 [[dependencies.${mod_id}]]
 modId = "forge"

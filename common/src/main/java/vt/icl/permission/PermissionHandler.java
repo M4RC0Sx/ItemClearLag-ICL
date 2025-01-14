@@ -1,4 +1,4 @@
-package vt.icl.forge.permission;
+package vt.icl.permission;
 
 import net.minecraft.server.command.ServerCommandSource;
 

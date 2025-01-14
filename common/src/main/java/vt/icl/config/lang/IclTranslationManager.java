@@ -3,7 +3,6 @@ package vt.icl.config.lang;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import net.fabricmc.loader.api.FabricLoader;
 import org.apache.commons.io.FileUtils;
 import vt.icl.ICLCommon;
 
@@ -16,13 +15,13 @@ import java.util.Map;
 import java.util.Objects;
 
 public class IclTranslationManager {
-    private static final String LANG_FILE_NAME = "Icl/lang/%s.json";
+    static File langDir = ICLCommon.CONFIG_DIR.resolve("lang/").toFile();
+    private static final String LANG_FILE_NAME = "%s.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() {
     }.getType();
 
     public static List<String> getAvailableLangs() {
-        File langDir = FabricLoader.getInstance().getConfigDir().resolve("Icl/lang").toFile();
         String[] files = langDir.list((dir, name) -> name.endsWith(".json"));
         if (files != null) {
             for (int i = 0; i < files.length; i++) {
@@ -34,7 +33,7 @@ public class IclTranslationManager {
     }
 
     public static Map<String, String> loadTranslation(String lang) {
-        File langFile = FabricLoader.getInstance().getConfigDir().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
+        File langFile = langDir.toPath().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
         if (langFile.exists()) {
             try {
                 String json = FileUtils.readFileToString(langFile, "UTF-8");
@@ -51,7 +50,6 @@ public class IclTranslationManager {
                         ICLCommon.LOGGER.info("Warning: Missing translation for key '" + key + "' in " + lang + ". Using default translation.");
                     }
                 }
-
                 saveTranslation(lang, loadedTranslations);
 
                 return loadedTranslations;
@@ -59,12 +57,15 @@ public class IclTranslationManager {
                 ICLCommon.LOGGER.info("Failed to load translation file for " + lang);
                 ICLCommon.LOGGER.info(e.getMessage());
             }
+        } else {
+            ICLCommon.LOGGER.info("Translation file for " + lang + " not found. Using default translations.");
+            return getDefaultEnUsTranslations();
         }
         return null;
     }
 
     public static void saveTranslation(String lang, Map<String, String> translations) {
-        File langFile = FabricLoader.getInstance().getConfigDir().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
+        File langFile = langDir.toPath().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
         try {
             String json = GSON.toJson(translations, MAP_TYPE);
             FileUtils.writeStringToFile(langFile, json, "UTF-8");
@@ -80,7 +81,7 @@ public class IclTranslationManager {
     }
 
     private static void createDefaultTranslationFile(String lang, Map<String, String> defaultTranslations) {
-        File langFile = FabricLoader.getInstance().getConfigDir().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
+        File langFile = langDir.toPath().resolve(String.format(LANG_FILE_NAME, lang)).toFile();
         if (!langFile.exists()) {
             saveTranslation(lang, defaultTranslations);
         }

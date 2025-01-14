@@ -20,8 +20,10 @@ import vt.icl.config.ConfigManager;
 import vt.icl.config.Configuration;
 import vt.icl.config.lang.IclTranslationManager;
 import vt.icl.mixin.ItemEntityAccessor;
-import vt.icl.forge.permission.PermissionHandler;
+import vt.icl.permission.PermissionHandler;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -32,6 +34,7 @@ public class ICLCommon {
     public static final String MOD_ID = "icl";
     public static final String MOD_PREFIX = "[" + MOD_ID.toUpperCase() + "] ";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID.toUpperCase());
+    public static final Path CONFIG_DIR = new File("./config/" + MOD_ID.substring(0, 1).toUpperCase() + MOD_ID.substring(1)).toPath();
     public static Configuration config = ConfigManager.getConfig();
     private static Timer TIMER = new Timer(MOD_ID.toUpperCase());
     public static Map<String, String> translations;
@@ -269,9 +272,11 @@ public class ICLCommon {
         String translation = null;
         if (ICLCommon.translations != null) {
             translation = ICLCommon.translations.get(key);
+            ICLCommon.LOGGER.debug("Translation: {}", translation);
         }
         if (translation == null && ICLCommon.defaultTranslations != null) {
             translation = ICLCommon.defaultTranslations.get(key);
+            ICLCommon.LOGGER.debug("Default Translation: {}", translation);
         }
         if (translation != null) {
             if (args != null && args.length > 0) {

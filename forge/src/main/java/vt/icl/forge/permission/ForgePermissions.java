@@ -7,6 +7,7 @@ import net.minecraftforge.server.permission.PermissionAPI;
 import net.minecraftforge.server.permission.nodes.PermissionNode;
 import net.minecraftforge.server.permission.nodes.PermissionTypes;
 import vt.icl.ICLCommon;
+import vt.icl.permission.PermissionHandler;
 
 import java.util.List;
 

@@ -41,6 +41,7 @@ public class ICL {
             ICLCommon.LOGGER.info("Using default permission system");
             ICLCommon.permissionHandler = null;
         }
+        ICLCommon.onServerStart(event.getServer());
     }
 
     @SubscribeEvent
