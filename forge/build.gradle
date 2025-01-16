@@ -37,6 +37,12 @@ dependencies {
     shadowBundle project(path: ':common', configuration: 'transformProductionForge')
 }
 
+afterEvaluate {
+    tasks.runServer {
+        classpath = classpath.filter { !it.toString().contains("\\org.lwjgl\\") }
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
     inputs.property 'mod_id', project.mod_id

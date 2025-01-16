@@ -4,6 +4,7 @@ package vt.icl.neoforge;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -20,16 +21,18 @@ public class ICL {
 
     public ICL(IEventBus eventBus) {
         ICLCommon.init();
-        eventBus.register(this);
+        NeoForge.EVENT_BUS.addListener(this::onPermissionNodesRegister);
+        NeoForge.EVENT_BUS.addListener(this::onServerStarting);
+        NeoForge.EVENT_BUS.addListener(this::onServerStopping);
+        NeoForge.EVENT_BUS.addListener(this::onCommandRegister);
     }
 
-    @SubscribeEvent
+
     public void onPermissionNodesRegister(PermissionGatherEvent.Nodes event) {
         NeoForgePermissions.init();
         event.addNodes(NeoForgePermissions.permissionNodesList);
     }
 
-    @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         if (config.UsePermissionsApi) {
             try {
@@ -45,12 +48,10 @@ public class ICL {
         ICLCommon.onServerStart(event.getServer());
     }
 
-    @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
         ICLCommon.onServerStop();
     }
 
-    @SubscribeEvent
     public void onCommandRegister(RegisterCommandsEvent event) {
         IclCommand.register(event.getDispatcher());
     }
