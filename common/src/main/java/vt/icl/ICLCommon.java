@@ -301,9 +301,9 @@ public class ICLCommon {
         vec3d = new Vec3d(player.getX() + e / k * 2.0, player.getY() + f / k * 2.0, player.getZ() + g / k * 2.0);
         Identifier sound;
         if (isLastSound) {
-            sound = new Identifier(ICLCommon.config.LastNotificationSound);
+            sound = Identifier.of(ICLCommon.config.LastNotificationSound);
         } else {
-            sound = new Identifier(ICLCommon.config.NotificationSound);
+            sound = Identifier.of(ICLCommon.config.NotificationSound);
         }
         RegistryEntry<SoundEvent> registryEntry = RegistryEntry.of(SoundEvent.of(sound));
         player.networkHandler.sendPacket(new PlaySoundS2CPacket(registryEntry,

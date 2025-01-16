@@ -1,17 +1,17 @@
-package vt.icl.forge.permission;
+package vt.icl.neoforge.permission;
 
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraftforge.server.permission.PermissionAPI;
-import net.minecraftforge.server.permission.nodes.PermissionNode;
-import net.minecraftforge.server.permission.nodes.PermissionTypes;
+import net.neoforged.neoforge.server.permission.PermissionAPI;
+import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
+import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 import vt.icl.ICLCommon;
 import vt.icl.permission.PermissionHandler;
 
 import java.util.List;
 
-public class ForgePermissions implements PermissionHandler {
+public class NeoForgePermissions implements PermissionHandler {
 
     public static final PermissionNode<Boolean> FORCECLEAN = new PermissionNode<>(
             Identifier.of(ICLCommon.MOD_ID, "forceclean"),
