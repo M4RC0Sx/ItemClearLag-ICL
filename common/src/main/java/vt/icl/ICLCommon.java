@@ -267,8 +267,9 @@ public class ICLCommon {
     }
 
     public static ClickEvent IclCancelEvent() {
-        return new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/icl cancel");
+        return new ClickEvent.RunCommand("/icl cancel");
     }
+
 
     public static String IclTranslate(String key, Object... args) {
         String translation = null;
