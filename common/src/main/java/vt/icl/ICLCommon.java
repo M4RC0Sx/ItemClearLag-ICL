@@ -88,7 +88,7 @@ public class ICLCommon {
                     setupCountdownTimer(server);
                 }
 
-                clearItems(server);
+                server.execute(() -> clearItems(server));
 
                 ICLCommon.TIMER.purge();
 
