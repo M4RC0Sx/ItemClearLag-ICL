@@ -66,6 +66,7 @@ public class IclCommand {
         builder.suggest("WHITE");
         return builder.buildFuture();
     };
+
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess commandRegistryAccess, CommandManager.RegistrationEnvironment registrationEnvironment) {
         register(dispatcher);
     }
@@ -90,7 +91,7 @@ public class IclCommand {
                         }))
                 .then(CommandManager.literal("cancel")
                         .requires(source -> permissionCheckforCancel(source))
-                                .executes(context -> {
+                        .executes(context -> {
                             cancelClean(context.getSource().getPlayer(), 0);
                             return 1;
                         }).then(CommandManager.argument("seconds", IntegerArgumentType.integer())
@@ -101,7 +102,7 @@ public class IclCommand {
                                 })))
                 .then(CommandManager.literal("config")
                         .requires(source -> permissionCheck(source, "config"))
-                                .then(CommandManager.literal("set")
+                        .then(CommandManager.literal("set")
                                 .then(CommandManager.argument("key", StringArgumentType.string())
                                         .suggests(CONFIG_FIELDS)
                                         .executes(context -> {
@@ -212,7 +213,7 @@ public class IclCommand {
     }
 
     public static void forceClean(MinecraftServer server, @Nullable ServerPlayerEntity player) {
-        ICLCommon.clearItems(server);
+        server.execute(() -> ICLCommon.clearItems(server));
         if (player != null) {
             player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.forceclear")).formatted(Formatting.GREEN));
         }
