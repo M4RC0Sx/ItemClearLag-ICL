@@ -13,6 +13,7 @@ import static vt.icl.ICLCommon.config;
 public class ICL implements ModInitializer {
     @Override
     public void onInitialize() {
+        ICLCommon.init();
         CommandRegistrationCallback.EVENT.register(IclCommand::register);
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             if (config.UsePermissionsApi) {
