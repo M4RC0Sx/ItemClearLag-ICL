@@ -1,5 +1,5 @@
 plugins {
-    id 'dev.architectury.loom' version '1.7-SNAPSHOT' apply false
+    id 'dev.architectury.loom' version '1.11-SNAPSHOT' apply false
     id 'architectury-plugin' version '3.4-SNAPSHOT'
     id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
     id 'co.uzzu.dotenv.gradle' version "4.0.0"
@@ -164,5 +164,11 @@ publishMods {
         }
         modLoaders.add("neoforge")
         displayName = "[NeoForge] " + "ICL-" + project.minecraft_version + "-" + project.version
+    }
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force 'org.ow2.asm:asm-commons:9.8'
     }
 }
