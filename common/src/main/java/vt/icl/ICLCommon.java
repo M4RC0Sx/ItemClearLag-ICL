@@ -2,6 +2,7 @@ package vt.icl;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
@@ -307,8 +308,8 @@ public class ICLCommon {
             sound = Identifier.of(ICLCommon.config.NotificationSound);
         }
         RegistryEntry<SoundEvent> registryEntry = RegistryEntry.of(SoundEvent.of(sound));
-        player.networkHandler.sendPacket(new PlaySoundS2CPacket(registryEntry,
-                SoundCategory.PLAYERS, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1, 1, 1));
+        player.networkHandler.send(new PlaySoundS2CPacket(registryEntry,
+                SoundCategory.PLAYERS, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1, 1, 1), (PacketCallbacks)null);
     }
 
     private static boolean permissionCheckforCancel(ServerCommandSource source) {
