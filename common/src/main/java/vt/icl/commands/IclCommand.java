@@ -4,13 +4,14 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.permissions.Permissions;
 import org.jetbrains.annotations.Nullable;
 import vt.icl.ICLCommon;
 import vt.icl.config.Configuration;
@@ -18,25 +19,29 @@ import vt.icl.config.lang.IclTranslationManager;
 
 import java.util.concurrent.ExecutionException;
 
-import static net.minecraft.command.suggestion.SuggestionProviders.AVAILABLE_SOUNDS;
+import static net.minecraft.commands.synchronization.SuggestionProviders.AVAILABLE_SOUNDS;
 import static vt.icl.ICLCommon.IclTranslate;
 import static vt.icl.ICLCommon.config;
 
 public class IclCommand {
-    private static final SuggestionProvider<ServerCommandSource> CONFIG_FIELDS = (context, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> CONFIG_FIELDS = (context, builder) -> {
         Configuration config = ICLCommon.config;
         config.get().forEach((key, type) -> builder.suggest(key));
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> LANGUAGES = (context, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> LANGUAGES = (context, builder) -> {
         IclTranslationManager.getAvailableLangs().forEach(builder::suggest);
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> SOUNDS = (context, builder) -> {
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private static final SuggestionProvider<CommandSourceStack> AVAILABLE_SOUNDS_FOR_STACK =
+            (SuggestionProvider<CommandSourceStack>) (SuggestionProvider) AVAILABLE_SOUNDS;
+
+    private static final SuggestionProvider<CommandSourceStack> SOUNDS = (context, builder) -> {
         try {
-            AVAILABLE_SOUNDS.getSuggestions(context, builder).get().getList().forEach(suggestion -> {
+            AVAILABLE_SOUNDS_FOR_STACK.getSuggestions(context, builder).get().getList().forEach(suggestion -> {
                 String sound = suggestion.getText();
                 String[] split = sound.split(":");
                 builder.suggest(split[split.length - 1]);
@@ -47,7 +52,7 @@ public class IclCommand {
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> COLORS = (context, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> COLORS = (context, builder) -> {
         builder.suggest("BLACK");
         builder.suggest("DARK_BLUE");
         builder.suggest("DARK_GREEN");
@@ -67,50 +72,50 @@ public class IclCommand {
         return builder.buildFuture();
     };
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess commandRegistryAccess, CommandManager.RegistrationEnvironment registrationEnvironment) {
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext commandRegistryAccess, Commands.CommandSelection registrationEnvironment) {
         register(dispatcher);
     }
 
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        dispatcher.register(CommandManager.literal("icl")
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(Commands.literal("icl")
                 .executes(context -> {
                     showReadmeInfo(context.getSource().getPlayer());
                     return 1;
                 })
-                .then(CommandManager.literal("forceclean")
+                .then(Commands.literal("forceclean")
                         .requires(source -> permissionCheck(source, "forceclean"))
                         .executes(context -> {
                             forceClean(context.getSource().getServer(), context.getSource().getPlayer());
                             return 1;
                         }))
-                .then(CommandManager.literal("reload")
+                .then(Commands.literal("reload")
                         .requires(source -> permissionCheck(source, "reload"))
                         .executes(context -> {
                             reloadIcl(context.getSource().getPlayer());
                             return 1;
                         }))
-                .then(CommandManager.literal("cancel")
+                .then(Commands.literal("cancel")
                         .requires(source -> permissionCheckforCancel(source))
                         .executes(context -> {
                             cancelClean(context.getSource().getPlayer(), 0);
                             return 1;
-                        }).then(CommandManager.argument("seconds", IntegerArgumentType.integer())
+                        }).then(Commands.argument("seconds", IntegerArgumentType.integer())
                                 .suggests((context, suggestionsBuilder) -> suggestionsBuilder.suggest("300").buildFuture())
                                 .executes(context -> {
                                     cancelClean(context.getSource().getPlayer(), IntegerArgumentType.getInteger(context, "seconds"));
                                     return 1;
                                 })))
-                .then(CommandManager.literal("config")
+                .then(Commands.literal("config")
                         .requires(source -> permissionCheck(source, "config"))
-                        .then(CommandManager.literal("set")
-                                .then(CommandManager.argument("key", StringArgumentType.string())
+                        .then(Commands.literal("set")
+                                .then(Commands.argument("key", StringArgumentType.string())
                                         .suggests(CONFIG_FIELDS)
                                         .executes(context -> {
                                             String key = StringArgumentType.getString(context, "key");
                                             showConfigValue(key, context.getSource().getPlayer());
                                             return 1;
                                         })
-                                        .then(CommandManager.argument("value", StringArgumentType.string())
+                                        .then(Commands.argument("value", StringArgumentType.string())
                                                 .suggests((context, suggestionsBuilder) -> switch (StringArgumentType.getString(context, "key")) {
                                                     case "Delay" -> suggestionsBuilder.suggest("80").buildFuture();
                                                     case "NotificationDelay" ->
@@ -142,35 +147,35 @@ public class IclCommand {
                                                 }))))));
     }
 
-    private static boolean permissionCheck(ServerCommandSource source, String permission) {
+    private static boolean permissionCheck(CommandSourceStack source, String permission) {
         if (ICLCommon.permissionHandler != null) {
             return ICLCommon.permissionHandler.hasPermission(source, ICLCommon.MOD_ID + "." + permission);
         } else {
-            return !config.RequireOp || source.hasPermissionLevel(2);
+            return !config.RequireOp || source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
         }
     }
 
-    private static boolean permissionCheckforCancel(ServerCommandSource source) {
+    private static boolean permissionCheckforCancel(CommandSourceStack source) {
         if (ICLCommon.permissionHandler != null) {
             return ICLCommon.permissionHandler.hasPermission(source, ICLCommon.MOD_ID + "." + "cancel");
         } else {
-            return !config.RequireOpCancel || source.hasPermissionLevel(2);
+            return !config.RequireOpCancel || source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER);
         }
     }
 
-    public static void showReadmeInfo(@Nullable ServerPlayerEntity player) {
+    public static void showReadmeInfo(@Nullable ServerPlayer player) {
         if (player != null) {
-            player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.readme")).formatted(Formatting.GREEN));
+            player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.readme")).withStyle(ChatFormatting.GREEN));
         } else {
             ICLCommon.LOGGER.info(IclTranslate("text.icl.readme"));
         }
     }
 
-    public static void showConfigValue(String key, @Nullable ServerPlayerEntity player) {
+    public static void showConfigValue(String key, @Nullable ServerPlayer player) {
         String currentValue = ICLCommon.config.getValue(key);
         String defaultValue = new Configuration().getValue(key);
         if (player != null) {
-            player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.current", key, currentValue, defaultValue)).formatted(Formatting.GREEN));
+            player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.current", key, currentValue, defaultValue)).withStyle(ChatFormatting.GREEN));
         } else {
             ICLCommon.LOGGER.info("Current value of {} is {}", key, currentValue);
             ICLCommon.LOGGER.info("Default value of {} is {}", key, defaultValue);
@@ -178,48 +183,48 @@ public class IclCommand {
 
     }
 
-    public static void reloadIcl(@Nullable ServerPlayerEntity player) {
+    public static void reloadIcl(@Nullable ServerPlayer player) {
         try {
             ICLCommon.reloadIcl();
             if (player != null) {
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload")).formatted(Formatting.GREEN));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload")).withStyle(ChatFormatting.GREEN));
             }
         } catch (Exception e) {
             if (player != null) {
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload.fail")).formatted(Formatting.RED));
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + e.getMessage()).formatted(Formatting.RED));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload.fail")).withStyle(ChatFormatting.RED));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + e.getMessage()).withStyle(ChatFormatting.RED));
             }
             ICLCommon.LOGGER.error(e.getMessage());
         }
 
     }
 
-    public static void cancelClean(@Nullable ServerPlayerEntity player, int seconds) {
+    public static void cancelClean(@Nullable ServerPlayer player, int seconds) {
         try {
             if (seconds < 0) {
                 seconds = 0;
             }
             ICLCommon.CancelIcl(seconds);
             if (player != null) {
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.cancel.message")).formatted(Formatting.GREEN));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.cancel.message")).withStyle(ChatFormatting.GREEN));
             }
         } catch (Exception e) {
             if (player != null) {
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload.fail")).formatted(Formatting.RED));
-                player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + e.getMessage()).formatted(Formatting.RED));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.reload.fail")).withStyle(ChatFormatting.RED));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + e.getMessage()).withStyle(ChatFormatting.RED));
             }
             ICLCommon.LOGGER.error(e.getMessage());
         }
     }
 
-    public static void forceClean(MinecraftServer server, @Nullable ServerPlayerEntity player) {
+    public static void forceClean(MinecraftServer server, @Nullable ServerPlayer player) {
         server.execute(() -> ICLCommon.clearItems(server));
         if (player != null) {
-            player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.forceclear")).formatted(Formatting.GREEN));
+            player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.forceclear")).withStyle(ChatFormatting.GREEN));
         }
     }
 
-    public static void ConfigEdit(String key, String value, @Nullable ServerPlayerEntity player) {
+    public static void ConfigEdit(String key, String value, @Nullable ServerPlayer player) {
         ICLCommon.config.set(key, value);
         if (key.equals("NotificationLang")) {
             ICLCommon.translations = IclTranslationManager.loadTranslation(value);
@@ -228,19 +233,19 @@ public class IclCommand {
             if (value != null) {
                 try {
                     if (player != null) {
-                        player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).formatted(Formatting.valueOf(config.NotificationColor)));
+                        player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).withStyle(ChatFormatting.valueOf(config.NotificationColor)));
                         return;
                     }
                 } catch (IllegalArgumentException e) {
                     if (player != null) {
-                        player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).formatted(Formatting.RED));
+                        player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).withStyle(ChatFormatting.RED));
                         return;
                     }
                 }
             }
         }
         if (player != null) {
-            player.sendMessage(Text.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).formatted(Formatting.GREEN));
+            player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.config.updated", key, value)).withStyle(ChatFormatting.GREEN));
         }
         ICLCommon.reloadIcl();
     }

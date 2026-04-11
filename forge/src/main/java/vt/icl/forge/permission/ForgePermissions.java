@@ -1,8 +1,10 @@
 package vt.icl.forge.permission;
 
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.permissions.Permissions;
 import net.minecraftforge.server.permission.PermissionAPI;
 import net.minecraftforge.server.permission.nodes.PermissionNode;
 import net.minecraftforge.server.permission.nodes.PermissionTypes;
@@ -14,22 +16,22 @@ import java.util.List;
 public class ForgePermissions implements PermissionHandler {
 
     public static final PermissionNode<Boolean> FORCECLEAN = new PermissionNode<>(
-            Identifier.of(ICLCommon.MOD_ID, "forceclean"),
+            Identifier.fromNamespaceAndPath(ICLCommon.MOD_ID, "forceclean"),
             PermissionTypes.BOOLEAN,
             (player, playerUUID, context) -> false
     );
     public static final PermissionNode<Boolean> RELOAD = new PermissionNode<>(
-            Identifier.of(ICLCommon.MOD_ID, "reload"),
+            Identifier.fromNamespaceAndPath(ICLCommon.MOD_ID, "reload"),
             PermissionTypes.BOOLEAN,
             (player, playerUUID, context) -> false
     );
     public static final PermissionNode<Boolean> CONFIG = new PermissionNode<>(
-            Identifier.of(ICLCommon.MOD_ID, "config"),
+            Identifier.fromNamespaceAndPath(ICLCommon.MOD_ID, "config"),
             PermissionTypes.BOOLEAN,
             (player, playerUUID, context) -> false
     );
     public static final PermissionNode<Boolean> CANCEL = new PermissionNode<>(
-            Identifier.of(ICLCommon.MOD_ID, "cancel"),
+            Identifier.fromNamespaceAndPath(ICLCommon.MOD_ID, "cancel"),
             PermissionTypes.BOOLEAN,
             (player, playerUUID, context) -> false
     );
@@ -39,12 +41,12 @@ public class ForgePermissions implements PermissionHandler {
     );
 
     @Override
-    public boolean hasPermission(ServerCommandSource source, String permission) {
+    public boolean hasPermission(CommandSourceStack source, String permission) {
         PermissionNode<Boolean> permissionNode = (PermissionNode<Boolean>) PermissionAPI.getRegisteredNodes().stream()
                 .filter(p -> p.getNodeName().equals(permission))
                 .findFirst()
                 .orElse(null);
-        if (source.hasPermissionLevel(4)) {
+        if (source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)) {
             return true;
         }
         if (source.getPlayer() == null) {
@@ -58,9 +60,9 @@ public class ForgePermissions implements PermissionHandler {
     }
 
     public static void init() {
-        FORCECLEAN.setInformation(Text.of("Force Clean"), Text.of("Allows the player to force clean the world"));
-        RELOAD.setInformation(Text.of("Reload"), Text.of("Allows the player to reload the config"));
-        CONFIG.setInformation(Text.of("Config"), Text.of("Allows the player to view the config"));
-        CANCEL.setInformation(Text.of("Cancel"), Text.of("Allows the player to cancel the current operation"));
+        FORCECLEAN.setInformation(Component.literal("Force Clean"), Component.literal("Allows the player to force clean the world"));
+        RELOAD.setInformation(Component.literal("Reload"), Component.literal("Allows the player to reload the config"));
+        CONFIG.setInformation(Component.literal("Config"), Component.literal("Allows the player to view the config"));
+        CANCEL.setInformation(Component.literal("Cancel"), Component.literal("Allows the player to cancel the current operation"));
     }
 }
