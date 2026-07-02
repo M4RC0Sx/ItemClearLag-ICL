@@ -1,2 +1,1 @@
-# Hello
-* Test
+# safer timer usage
