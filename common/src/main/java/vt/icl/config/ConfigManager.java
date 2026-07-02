@@ -2,10 +2,13 @@ package vt.icl.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.apache.commons.io.FileUtils;
 import vt.icl.ICLCommon;
 
 import java.io.File;
+import java.lang.reflect.Field;
 
 public class ConfigManager {
     private static final String CONFIG_FILE_NAME = ICLCommon.MOD_ID.toUpperCase() + ".json";
@@ -17,12 +20,12 @@ public class ConfigManager {
         File configFile = ICLCommon.CONFIG_DIR.resolve(CONFIG_FILE_NAME).toFile();
         if (configFile.exists()) {
             try {
-                config = GSON.fromJson(FileUtils.readFileToString(configFile, "UTF-8"), Configuration.class);
-                for (String key : new Configuration().get().keySet()) {
-                    if (!config.get().containsKey(key)) {
-                        config.get().put(key, new Configuration().get().get(key));
-                    }
+                JsonObject jsonObject = JsonParser.parseString(FileUtils.readFileToString(configFile, "UTF-8")).getAsJsonObject();
+                config = GSON.fromJson(jsonObject, Configuration.class);
+                if (config == null) {
+                    config = new Configuration();
                 }
+                mergeMissingFields(jsonObject, config, new Configuration());
             } catch (Exception e) {
                 ICLCommon.LOGGER.info("Failed to load config file " + e.getMessage());
                 config = new Configuration();
@@ -48,9 +51,19 @@ public class ConfigManager {
     public static void saveConfig() {
         File configFile = ICLCommon.CONFIG_DIR.resolve(CONFIG_FILE_NAME).toFile();
         try {
+            FileUtils.forceMkdirParent(configFile);
             FileUtils.writeStringToFile(configFile, GSON.toJson(config), "UTF-8");
         } catch (Exception e) {
             ICLCommon.LOGGER.info("Failed to save config file " + e.getMessage());
+        }
+    }
+
+    private static void mergeMissingFields(JsonObject jsonObject, Configuration config, Configuration defaults) throws IllegalAccessException {
+        for (Field field : Configuration.class.getFields()) {
+            String key = field.getName();
+            if (!jsonObject.has(key) || jsonObject.get(key).isJsonNull()) {
+                field.set(config, field.get(defaults));
+            }
         }
     }
 }
