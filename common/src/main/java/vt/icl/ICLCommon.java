@@ -37,6 +37,7 @@ import static vt.icl.config.lang.IclTranslationManager.createDefaultTranslationF
 public class ICLCommon {
     public static final String MOD_ID = "icl";
     public static final String MOD_PREFIX = "[" + MOD_ID.toUpperCase() + "] ";
+    private static final String DEFAULT_NOTIFICATION_SOUND = "block.note_block.harp";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID.toUpperCase());
     public static final Path CONFIG_DIR = new File("./config/" + MOD_ID.substring(0, 1).toUpperCase() + MOD_ID.substring(1)).toPath();
     public static Configuration config = ConfigManager.getConfig();
@@ -55,6 +56,7 @@ public class ICLCommon {
 
     public static void onServerStart(MinecraftServer server) {
         ICLCommon.server = server;
+        resetTimer();
         if (config.Delay > 0) {
             doItemClean(server);
             if (config.doShowNotification) {
@@ -74,29 +76,30 @@ public class ICLCommon {
         LOGGER.info(MOD_ID.toUpperCase() + " stopped");
     }
 
+    private static void resetTimer() {
+        TIMER.cancel();
+        TIMER.purge();
+        TIMER = new Timer(MOD_ID.toUpperCase());
+    }
+
     public static void doItemClean(MinecraftServer server) {
         long delay = ICLCommon.config.Delay;
         if (delay < 0) {
             return;
         }
-        ICLCommon.TIMER.schedule(new TimerTask() {
-            @Override
-            public void run() {
-
-                if (ICLCommon.config.doShowNotification) {
-                    setupNotificationTimers(server);
-                }
-                if (ICLCommon.config.doNotificationCountdown) {
-                    setupCountdownTimer(server);
-                }
-
-                server.execute(() -> clearItems(server));
-
-                ICLCommon.TIMER.purge();
-
-                doItemClean(server);
+        scheduleTask(delay * 1000, () -> {
+            if (ICLCommon.config.doShowNotification) {
+                setupNotificationTimers(server);
             }
-        }, delay * 1000);
+            if (ICLCommon.config.doNotificationCountdown) {
+                setupCountdownTimer(server);
+            }
+
+            server.execute(() -> runSafely("clear items", () -> clearItems(server)));
+
+            ICLCommon.TIMER.purge();
+            doItemClean(server);
+        });
     }
 
     public static void setupNotificationTimers(MinecraftServer server) {
@@ -106,25 +109,17 @@ public class ICLCommon {
             if (delay < 0 || delay > ICLCommon.config.Delay) {
                 continue;
             }
-            ICLCommon.TIMER.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    ICLCommon.LOGGER.info("{} seconds left", "Clearing items " + (ICLCommon.config.NotificationStart - ICLCommon.config.NotificationDelay * finalI));
-                    for (var player : server.getPlayerList().getPlayers()) {
-                        MutableComponent message = Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.notification", (ICLCommon.config.NotificationStart - ICLCommon.config.NotificationDelay * finalI)) + " ")
-                                .withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor));
-                        IclMessage(player, message);
-                        try {
-                            if (ICLCommon.config.doNotificationSound) {
-                                IclPlaysound(player, false);
-                            }
-                        } catch (Exception e) {
-                            player.sendSystemMessage(Component.literal(e.getMessage()).withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor)));
-                            ICLCommon.LOGGER.error("Failed to play sound: " + e.getMessage());
-                        }
+            scheduleTask(delay * 1000, () -> {
+                ICLCommon.LOGGER.info("{} seconds left", "Clearing items " + (ICLCommon.config.NotificationStart - ICLCommon.config.NotificationDelay * finalI));
+                for (var player : server.getPlayerList().getPlayers()) {
+                    MutableComponent message = Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.notification", (ICLCommon.config.NotificationStart - ICLCommon.config.NotificationDelay * finalI)) + " ")
+                            .withStyle(notificationFormatting());
+                    IclMessage(player, message);
+                    if (ICLCommon.config.doNotificationSound) {
+                        runSafely("notification sound", () -> IclPlaysound(player, false));
                     }
                 }
-            }, delay * 1000);
+            });
         }
     }
 
@@ -152,39 +147,28 @@ public class ICLCommon {
 
 
         long finalCountdownstart = countdownstart;
-        ICLCommon.TIMER.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                for (int i = 0; i < finalCountdownstart; i++) {
-                    int finalI = i;
-                    ICLCommon.TIMER.schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            ICLCommon.LOGGER.info("{} seconds left", "Clearing items " + (finalCountdownstart - finalI));
-                            for (var player : server.getPlayerList().getPlayers()) {
-                                MutableComponent message = Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) + " ")
-                                        .withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor));
-                                IclMessage(player, message);
-                            }
-                        }
-                    }, finalI * 1000L);
-                }
+        scheduleTask(delay * 1000, () -> {
+            for (int i = 0; i < finalCountdownstart; i++) {
+                int finalI = i;
+                scheduleTask(finalI * 1000L, () -> {
+                    ICLCommon.LOGGER.info("{} seconds left", "Clearing items " + (finalCountdownstart - finalI));
+                    for (var player : server.getPlayerList().getPlayers()) {
+                        MutableComponent message = Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.countdown", (finalCountdownstart - finalI)) + " ")
+                                .withStyle(notificationFormatting());
+                        IclMessage(player, message);
+                    }
+                });
             }
-        }, (delay) * 1000);
+        });
     }
 
     public static void clearItems(MinecraftServer server) {
         ICLCommon.LOGGER.info("Clearing items");
         for (var player : server.getPlayerList().getPlayers()) {
             if (ICLCommon.config.doShowNotification) {
-                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.clear")).withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor)));
-                try {
-                    if (ICLCommon.config.doLastNotificationSound) {
-                        IclPlaysound(player, true);
-                    }
-                } catch (Exception e) {
-                    player.sendSystemMessage(Component.literal(e.getMessage()).withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor)));
-                    ICLCommon.LOGGER.error("Failed to play sound: " + e.getMessage());
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.clear")).withStyle(notificationFormatting()));
+                if (ICLCommon.config.doLastNotificationSound) {
+                    runSafely("last notification sound", () -> IclPlaysound(player, true));
                 }
             }
         }
@@ -208,15 +192,14 @@ public class ICLCommon {
         }
         for (var player : server.getPlayerList().getPlayers()) {
             if (ICLCommon.config.doShowNotification) {
-                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.clear.finish", count)).withStyle(ChatFormatting.valueOf(ICLCommon.config.NotificationColor)));
+                player.sendSystemMessage(Component.literal(ICLCommon.MOD_PREFIX + IclTranslate("text.icl.clear.finish", count)).withStyle(notificationFormatting()));
             }
         }
         ICLCommon.LOGGER.info("Items cleared: {}", count);
     }
 
     public static void reloadIcl() {
-        ICLCommon.TIMER.cancel();
-        ICLCommon.TIMER = new Timer(ICLCommon.MOD_ID.toUpperCase());
+        resetTimer();
         ICLCommon.config = ConfigManager.getConfig();
         if (ICLCommon.config.Delay > 0) {
             doItemClean(ICLCommon.server);
@@ -232,26 +215,22 @@ public class ICLCommon {
     }
 
     public static void CancelIcl(int tempDelay) {
-        ICLCommon.TIMER.cancel();
-        ICLCommon.TIMER = new Timer(ICLCommon.MOD_ID.toUpperCase());
+        resetTimer();
         if (tempDelay > 0) {
-            ICLCommon.TIMER.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    ICLCommon.config = ConfigManager.getConfig();
-                    if (ICLCommon.config.Delay > 0) {
-                        doItemClean(ICLCommon.server);
-                        if (ICLCommon.config.doShowNotification) {
-                            setupNotificationTimers(ICLCommon.server);
-                        }
-                        if (ICLCommon.config.doNotificationCountdown) {
-                            setupCountdownTimer(ICLCommon.server);
-                        }
-                    } else {
-                        ICLCommon.LOGGER.info(ICLCommon.MOD_ID.toUpperCase() + " disabled, delay is less than 0");
+            scheduleTask(tempDelay * 1000L, () -> {
+                ICLCommon.config = ConfigManager.getConfig();
+                if (ICLCommon.config.Delay > 0) {
+                    doItemClean(ICLCommon.server);
+                    if (ICLCommon.config.doShowNotification) {
+                        setupNotificationTimers(ICLCommon.server);
                     }
+                    if (ICLCommon.config.doNotificationCountdown) {
+                        setupCountdownTimer(ICLCommon.server);
+                    }
+                } else {
+                    ICLCommon.LOGGER.info(ICLCommon.MOD_ID.toUpperCase() + " disabled, delay is less than 0");
                 }
-            }, tempDelay * 1000L);
+            });
         } else {
             ICLCommon.config = ConfigManager.getConfig();
             if (ICLCommon.config.Delay > 0) {
@@ -271,7 +250,6 @@ public class ICLCommon {
     public static ClickEvent IclCancelEvent() {
         return new ClickEvent.RunCommand("/icl cancel");
     }
-
 
     public static String IclTranslate(String key, Object... args) {
         String translation = null;
@@ -295,22 +273,59 @@ public class ICLCommon {
     }
 
     public static void IclPlaysound(ServerPlayer player, boolean isLastSound) {
-        Vec3 vec3d;
+        Vec3 vec3d = safeSoundPosition(player);
+        Identifier sound = resolveSoundIdentifier(isLastSound);
+        Holder<SoundEvent> registryEntry = Holder.direct(SoundEvent.createVariableRangeEvent(sound));
+        player.connection.send(new ClientboundSoundPacket(registryEntry,
+                SoundSource.PLAYERS, vec3d.x(), vec3d.y(), vec3d.z(), 1, 1, 1), null);
+    }
+
+    private static void scheduleTask(long delayMillis, Runnable action) {
+        ICLCommon.TIMER.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                runSafely("timer task", action);
+            }
+        }, delayMillis);
+    }
+
+    private static void runSafely(String action, Runnable runnable) {
+        try {
+            runnable.run();
+        } catch (Exception e) {
+            ICLCommon.LOGGER.error("ICL {} failed", action, e);
+        }
+    }
+
+    private static ChatFormatting notificationFormatting() {
+        try {
+            return ChatFormatting.valueOf(ICLCommon.config.NotificationColor);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            ICLCommon.LOGGER.error("Invalid notification color '{}', falling back to RED", ICLCommon.config.NotificationColor);
+            return ChatFormatting.RED;
+        }
+    }
+
+    private static Identifier resolveSoundIdentifier(boolean isLastSound) {
+        String sound = isLastSound ? ICLCommon.config.LastNotificationSound : ICLCommon.config.NotificationSound;
+        try {
+            return Identifier.parse(sound);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            ICLCommon.LOGGER.error("Invalid notification sound '{}', falling back to {}", sound, DEFAULT_NOTIFICATION_SOUND);
+            return Identifier.parse(DEFAULT_NOTIFICATION_SOUND);
+        }
+    }
+
+    private static Vec3 safeSoundPosition(ServerPlayer player) {
         double e = player.getX();
         double f = player.getY();
         double g = player.getZ();
         double h = e * e + f * f + g * g;
-        double k = Math.sqrt(h);
-        vec3d = new Vec3(player.getX() + e / k * 2.0, player.getY() + f / k * 2.0, player.getZ() + g / k * 2.0);
-        Identifier sound;
-        if (isLastSound) {
-            sound = Identifier.parse(ICLCommon.config.LastNotificationSound);
-        } else {
-            sound = Identifier.parse(ICLCommon.config.NotificationSound);
+        if (h == 0) {
+            return player.position();
         }
-        Holder<SoundEvent> registryEntry = Holder.direct(SoundEvent.createVariableRangeEvent(sound));
-        player.connection.send(new ClientboundSoundPacket(registryEntry,
-                SoundSource.PLAYERS, vec3d.x(), vec3d.y(), vec3d.z(), 1, 1, 1), null);
+        double k = Math.sqrt(h);
+        return new Vec3(player.getX() + e / k * 2.0, player.getY() + f / k * 2.0, player.getZ() + g / k * 2.0);
     }
 
     private static boolean permissionCheckforCancel(CommandSourceStack source) {
